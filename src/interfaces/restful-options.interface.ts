@@ -4,11 +4,11 @@ export interface RestfulOptions {
   allow?: string[];
   exclude?: string[];
   persist?: string[];
-  filter?: FilterOptions[];
-  join?: JoinOptions;
+  where?: FilterOptions[];
+  include?: JoinOptions;
   limit?: number;
   maxLimit?: number;
-  sort?: SortOptions[];
+  order?: SortOptions[];
   cache?: number | false;
 }
 

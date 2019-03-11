@@ -1,13 +1,13 @@
 export interface RequestQueryParams {
   fields?: string;
-  filter?: string[];
-  'filter[]'?: string[];
+  where?: string[];
+  'where[]'?: string[];
   or?: string[];
   'or[]'?: string[];
-  sort?: string[];
-  'sort[]'?: string[];
-  join?: string[];
-  'join[]'?: string[];
+  order?: string[];
+  'order[]'?: string[];
+  include?: string[];
+  'include[]'?: string[];
   limit?: string;
   per_page?: string;
   offset?: string;

@@ -17,7 +17,7 @@ export class RestfulParamsDto {
   @IsOptional()
   @ValidateNested({ each: true })
   @Type((t) => FilterParamDto)
-  filter?: FilterParamDto[];
+  where?: FilterParamDto[];
 
   @IsOptional()
   @ValidateNested({ each: true })
@@ -27,12 +27,12 @@ export class RestfulParamsDto {
   @IsOptional()
   @ValidateNested({ each: true })
   @Type((t) => JoinParamDto)
-  join?: JoinParamDto[];
+  include?: JoinParamDto[];
 
   @IsOptional()
   @ValidateNested({ each: true })
   @Type((t) => SortParamDto)
-  sort?: SortParamDto[];
+  order?: SortParamDto[];
 
   @IsOptional()
   @IsNumber()

@@ -37,6 +37,7 @@ export class RepositoryService<T> extends RestfulService<T> {
    * @param options
    */
   public async getMany(
+    // user: any,
     query: RequestParamsParsed = {},
     options: RestfulOptions = {},
   ): Promise<T[]> {
@@ -51,15 +52,17 @@ export class RepositoryService<T> extends RestfulService<T> {
    * @param options
    */
   public async getOne(
+    // user: any,
     id: number,
-    { fields, join, cache }: RequestParamsParsed = {},
+    { where, fields, include, cache }: RequestParamsParsed = {},
     options: RestfulOptions = {},
   ): Promise<T> {
+    console.log(where);
     return this.getOneOrFail(
       {
-        filter: [{ field: 'id', operator: 'eq', value: id }],
+        where: where ? [{ field: 'id', operator: '$eq', value: id }, ...where] : [{ field: 'id', operator: '$eq', value: id }],
         fields,
-        join,
+        include,
         cache,
       },
       options,
@@ -71,7 +74,11 @@ export class RepositoryService<T> extends RestfulService<T> {
    * @param data
    * @param paramsFilter
    */
-  public async createOne(data: DeepPartial<T>, paramsFilter: FilterParamParsed[] = []): Promise<T> {
+  public async createOne(
+    // user: any,
+    data: DeepPartial<T>,
+    paramsFilter: FilterParamParsed[] = []
+  ): Promise<T> {
     const entity = this.plainToClass(data, paramsFilter);
 
     if (!entity) {
@@ -87,6 +94,7 @@ export class RepositoryService<T> extends RestfulService<T> {
    * @param paramsFilter
    */
   public async createMany(
+    // user: any,
     data: { bulk: DeepPartial<T>[] },
     paramsFilter: FilterParamParsed[] = [],
   ): Promise<T[]> {
@@ -112,13 +120,14 @@ export class RepositoryService<T> extends RestfulService<T> {
    * @param paramsFilter
    */
   public async updateOne(
+    // user: any,
     id: number,
     data: DeepPartial<T>,
     paramsFilter: FilterParamParsed[] = [],
   ): Promise<T> {
     // we need this, because TypeOrm will try to insert if no data found by id
     const found = await this.getOneOrFail({
-      filter: [{ field: 'id', operator: 'eq', value: id }, ...paramsFilter],
+      where: [{ field: 'id', operator: '$eq', value: id }, ...paramsFilter],
     });
 
     data['id'] = id;
@@ -134,19 +143,23 @@ export class RepositoryService<T> extends RestfulService<T> {
    * @param id
    * @param paramsFilter
    */
-  public async deleteOne(id: number, paramsFilter: FilterParamParsed[] = []): Promise<void> {
+  public async deleteOne(
+    // user: any,
+    id: number,
+    paramsFilter: FilterParamParsed[] = []
+  ): Promise<void> {
     const found = await this.getOneOrFail({
-      filter: [{ field: 'id', operator: 'eq', value: id }, ...paramsFilter],
+      where: [{ field: 'id', operator: '$eq', value: id }, ...paramsFilter],
     });
 
     const deleted = await this.repo.remove(found);
   }
 
   private async getOneOrFail(
-    { filter, fields, join, cache }: RequestParamsParsed = {},
+    { where, fields, include, cache }: RequestParamsParsed = {},
     options: RestfulOptions = {},
   ): Promise<T> {
-    const builder = await this.buildQuery({ filter, fields, join, cache }, options, false);
+    const builder = await this.buildQuery({ where, fields, include, cache }, options, false);
     const found = await builder.getOne();
 
     if (!found) {
@@ -179,22 +192,22 @@ export class RepositoryService<T> extends RestfulService<T> {
     builder.select(select);
 
     // set mandatory where condition
-    if (isArrayFull(mergedOptions.filter)) {
-      for (let i = 0; i < mergedOptions.filter.length; i++) {
-        this.setAndWhere(mergedOptions.filter[i], `mergedOptions${i}`, builder);
+    if (isArrayFull(mergedOptions.where)) {
+      for (let i = 0; i < mergedOptions.where.length; i++) {
+        this.setAndWhere(mergedOptions.where[i], `mergedOptions${i}`, builder);
       }
     }
 
-    const hasFilter = isArrayFull(query.filter);
+    const hasFilter = isArrayFull(query.where);
     const hasOr = isArrayFull(query.or);
 
     if (hasFilter && hasOr) {
-      if (query.filter.length === 1 && query.or.length === 1) {
+      if (query.where.length === 1 && query.or.length === 1) {
         // WHERE :filter OR :or
-        this.setOrWhere(query.filter[0], `filter0`, builder);
+        this.setOrWhere(query.where[0], `filter`, builder);
         this.setOrWhere(query.or[0], `or0`, builder);
-      } else if (query.filter.length === 1) {
-        this.setAndWhere(query.filter[0], `filter0`, builder);
+      } else if (query.where.length === 1) {
+        this.setAndWhere(query.where[0], `filter`, builder);
         builder.orWhere(
           new Brackets((qb) => {
             for (let i = 0; i < query.or.length; i++) {
@@ -206,16 +219,16 @@ export class RepositoryService<T> extends RestfulService<T> {
         this.setAndWhere(query.or[0], `or0`, builder);
         builder.orWhere(
           new Brackets((qb) => {
-            for (let i = 0; i < query.filter.length; i++) {
-              this.setAndWhere(query.filter[i], `filter${i}`, qb as any);
+            for (let i = 0; i < query.where.length; i++) {
+              this.setAndWhere(query.where[i], `filter${i}`, qb as any);
             }
           }),
         );
       } else {
         builder.andWhere(
           new Brackets((qb) => {
-            for (let i = 0; i < query.filter.length; i++) {
-              this.setAndWhere(query.filter[i], `filter${i}`, qb as any);
+            for (let i = 0; i < query.where.length; i++) {
+              this.setAndWhere(query.where[i], `filter${i}`, qb as any);
             }
           }),
         );
@@ -234,21 +247,22 @@ export class RepositoryService<T> extends RestfulService<T> {
       }
     } else if (hasFilter) {
       // WHERE :filter AND :filter AND ...
-      for (let i = 0; i < query.filter.length; i++) {
-        this.setAndWhere(query.filter[i], `filter${i}`, builder);
+      for (let i = 0; i < query.where.length; i++) {
+        this.setAndWhere(query.where[i], `filter${i}`, builder);
       }
     }
 
     // set joins
-    if (isArrayFull(query.join)) {
+    if (isArrayFull(query.include)) {
+      console.log(query, this.options)
       const joinOptions = {
-        ...(this.options.join ? this.options.join : {}),
-        ...(options.join ? options.join : {}),
+        ...(this.options.include ? this.options.include : {}),
+        ...(options.include ? options.include : {}),
       };
 
       if (Object.keys(joinOptions).length) {
-        for (let i = 0; i < query.join.length; i++) {
-          this.setJoin(query.join[i], joinOptions, builder);
+        for (let i = 0; i < query.include.length; i++) {
+          this.setJoin(query.include[i], joinOptions, builder);
         }
       }
     }
@@ -286,6 +300,8 @@ export class RepositoryService<T> extends RestfulService<T> {
       const cacheId = this.getCacheId(query, options);
       builder.cache(cacheId, mergedOptions.cache);
     }
+
+    console.log(builder.getQueryAndParameters());
 
     return builder;
   }
@@ -411,6 +427,8 @@ export class RepositoryService<T> extends RestfulService<T> {
       };
     }
 
+    console.log('COND:', cond, this.entityRelationsHash, joinOptions)
+
     if (cond.field && this.entityRelationsHash[cond.field] && joinOptions[cond.field]) {
       const relation = this.entityRelationsHash[cond.field];
       const options = joinOptions[cond.field];
@@ -432,6 +450,8 @@ export class RepositoryService<T> extends RestfulService<T> {
       ].map((col) => `${relation.name}.${col}`);
 
       const relationPath = relation.nestedRelation || `${this.alias}.${relation.name}`;
+
+      console.log(relation.type, relationPath, relation.name)
 
       builder[relation.type](relationPath, relation.name);
       builder.addSelect(select);
@@ -498,10 +518,10 @@ export class RepositoryService<T> extends RestfulService<T> {
   }
 
   private getSort(query: RequestParamsParsed, options: RestfulOptions) {
-    return query.sort && query.sort.length
-      ? this.mapSort(query.sort)
-      : options.sort && options.sort.length
-      ? this.mapSort(options.sort)
+    return query.order && query.order.length
+      ? this.mapSort(query.order)
+      : options.order && options.order.length
+      ? this.mapSort(options.order)
       : {};
   }
 
@@ -525,75 +545,75 @@ export class RepositoryService<T> extends RestfulService<T> {
     let params: ObjectLiteral;
 
     switch (cond.operator) {
-      case 'eq':
+      case '$eq':
         str = `${field} = :${param}`;
         break;
 
-      case 'ne':
+      case '$ne':
         str = `${field} != :${param}`;
         break;
 
-      case 'gt':
+      case '$gt':
         str = `${field} > :${param}`;
         break;
 
-      case 'lt':
+      case '$lt':
         str = `${field} < :${param}`;
         break;
 
-      case 'gte':
+      case '$gte':
         str = `${field} >= :${param}`;
         break;
 
-      case 'lte':
+      case '$lte':
         str = `${field} <= :${param}`;
         break;
 
-      case 'starts':
+      case '$starts':
         str = `${field} LIKE :${param}`;
         params = { [param]: `${cond.value}%` };
         break;
 
-      case 'ends':
+      case '$ends':
         str = `${field} LIKE :${param}`;
         params = { [param]: `%${cond.value}` };
         break;
 
-      case 'cont':
+      case '$cont':
         str = `${field} LIKE :${param}`;
         params = { [param]: `%${cond.value}%` };
         break;
 
-      case 'excl':
+      case '$excl':
         str = `${field} NOT LIKE :${param}`;
         params = { [param]: `%${cond.value}%` };
         break;
 
-      case 'in':
+      case '$in':
         if (!Array.isArray(cond.value) || !cond.value.length) {
           this.throwBadRequestException(`Invalid column '${cond.field}' value`);
         }
         str = `${field} IN (:...${param})`;
         break;
 
-      case 'notin':
+      case '$notin':
         if (!Array.isArray(cond.value) || !cond.value.length) {
           this.throwBadRequestException(`Invalid column '${cond.field}' value`);
         }
         str = `${field} NOT IN (:...${param})`;
         break;
 
-      case 'isnull':
+      case '$isnull':
         str = `${field} IS NULL`;
         params = {};
         break;
 
-      case 'notnull':
+      case '$notnull':
         str = `${field} IS NOT NULL`;
         params = {};
         break;
 
-      case 'between':
+      case '$between':
         if (!Array.isArray(cond.value) || !cond.value.length || cond.value.length !== 2) {
           this.throwBadRequestException(`Invalid column '${cond.field}' value`);
         }

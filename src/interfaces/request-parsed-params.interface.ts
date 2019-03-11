@@ -2,10 +2,10 @@ import { ComparisonOperator } from '../operators.list';
 
 export interface RequestParamsParsed {
   fields?: string[];
-  filter?: FilterParamParsed[];
+  where?: FilterParamParsed[];
   or?: FilterParamParsed[];
-  join?: JoinParamParsed[];
-  sort?: SortParamParsed[];
+  include?: JoinParamParsed[];
+  order?: SortParamParsed[];
   limit?: number;
   offset?: number;
   page?: number;

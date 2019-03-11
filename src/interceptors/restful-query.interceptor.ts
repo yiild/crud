@@ -17,14 +17,14 @@ export class RestfulQueryInterceptor implements NestInterceptor {
   private delimStr = ',';
   private reservedFields = [
     'fields',
-    'filter',
-    'filter[]',
+    'where',
+    'where[]',
     'or',
     'or[]',
-    'sort',
-    'sort[]',
-    'join',
-    'join[]',
+    'order',
+    'order[]',
+    'include',
+    'include[]',
     'per_page',
     'limit',
     'offset',
@@ -46,10 +46,10 @@ export class RestfulQueryInterceptor implements NestInterceptor {
     }
 
     const fields = this.splitString(query.fields);
-    const filter = this.parseArray(query.filter || query['filter[]'], this.parseFilter);
+    const where = this.parseArray(query.where || query['where[]'], this.parseFilter);
     const or = this.parseArray(query.or || query['or[]'], this.parseFilter);
-    const sort = this.parseArray(query.sort || query['sort[]'], this.parseSort);
-    const join = this.parseArray(query.join || query['join[]'], this.parseJoin);
+    const order = this.parseArray(query.order || query['order[]'], this.parseSort);
+    const include = this.parseArray(query.include || query['include[]'], this.parseJoin);
     const limit = this.parseInt(query.per_page || query.limit);
     const offset = this.parseInt(query.offset);
     const page = this.parseInt(query.page);
@@ -57,11 +57,11 @@ export class RestfulQueryInterceptor implements NestInterceptor {
     const entityFields = this.parseEntityFields(query);
 
     const result = {
-      filter: [...filter, ...entityFields],
+      where: [...where, ...entityFields],
       or,
       fields,
-      sort,
-      join,
+      order,
+      include,
       limit,
       offset,
       page,
@@ -85,7 +85,7 @@ export class RestfulQueryInterceptor implements NestInterceptor {
 
   private parseFilter(str: string): FilterParamParsed {
     try {
-      const isArrayValue = ['in', 'notin', 'between'];
+      const isArrayValue = ['$in', '$notin', '$between'];
       const params = str.split(this.delim);
       const field = params[0];
       const operator = params[1] as ComparisonOperator;
@@ -150,6 +150,6 @@ export class RestfulQueryInterceptor implements NestInterceptor {
   private parseEntityFields(query: RequestQueryParams): FilterParamParsed[] {
     return Object.keys(query)
       .filter((key) => !this.reservedFields.some((reserved) => reserved === key))
-      .map((field) => ({ field, operator: 'eq', value: query[field] } as FilterParamParsed));
+      .map((field) => ({ field, operator: '$eq', value: query[field] } as FilterParamParsed));
   }
 }

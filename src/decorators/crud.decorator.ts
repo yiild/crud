@@ -332,7 +332,7 @@ function getParamsFilterInit(prototype: any, crudOptions: CrudOptions) {
         (field) =>
           ({
             field: isArray ? field : crudOptions.params[field],
-            operator: 'eq',
+            operator: '$eq',
             value: params[field],
           } as FilterParamParsed),
       );
@@ -343,11 +343,11 @@ function getMergedOptionsInit(prototype: any, crudOptions: CrudOptions) {
   prototype['getMergedOptions'] = function getMergedOptions(params: ObjectLiteral) {
     const paramsFilter = this.getParamsFilter(params);
     const options = Object.assign({}, crudOptions.options || {});
-    const optionsFilter = options.filter || [];
-    const filter = [...optionsFilter, ...paramsFilter];
+    const optionsFilter = options.where || [];
+    const where = [...optionsFilter, ...paramsFilter];
 
-    if (filter.length) {
-      options.filter = filter;
+    if (where.length) {
+      options.where = where;
     }
 
     return options;
