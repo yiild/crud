@@ -163,9 +163,27 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?filter=domain||$ne||test1 (200)', () => {
+    return request(server)
+      .get('/companies?filter=domain||$ne||test1')
+      .expect(200);
+  });
+
+  it('/GET ?filter=domain||ne||test1 (200)', () => {
+    return request(server)
+      .get('/companies?filter=domain||ne||test1')
+      .expect(200);
+  });
+
   it('/GET ?where=domain||$ne||test1 (200)', () => {
     return request(server)
       .get('/companies?where=domain||$ne||test1')
+      .expect(200);
+  });
+
+  it('/GET ?filter[domain][$ne]=test1 (200)', () => {
+    return request(server)
+      .get('/companies?filter[domain][$ne]=test1')
       .expect(200);
   });
 
@@ -257,6 +275,12 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?join=users (200)', () => {
+    return request(server)
+      .get('/companies?join=users')
+      .expect(200);
+  });
+
   it('/GET ?include=users||email (200)', () => {
     return request(server)
       .get('/companies?include=users||email')
@@ -266,6 +290,24 @@ describe('Simple base routes', () => {
   it('/GET ?include[users]=email (200)', () => {
     return request(server)
       .get('/companies?include[users]=email')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body[0].users).to.be.an('array')
+      });
+  });
+
+  it('/GET ?join[users]=email (200)', () => {
+    return request(server)
+      .get('/companies?join[users]=email')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body[0].users).to.be.an('array')
+      });
+  });
+
+  it('/GET ?sort=name,DESC (200)', () => {
+    return request(server)
+      .get('/companies?sort=name,DESC')
       .expect(200);
   });
 

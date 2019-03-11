@@ -19,12 +19,18 @@ export class RestfulQueryInterceptor implements NestInterceptor {
     'fields',
     'where',
     'where[]',
+    'filter',
+    'filter[]',
     'or',
     'or[]',
     'order',
     'order[]',
+    'sort',
+    'sort[]',
     'include',
     'include[]',
+    'join',
+    'join[]',
     'per_page',
     'limit',
     'offset',
@@ -45,15 +51,15 @@ export class RestfulQueryInterceptor implements NestInterceptor {
       return {};
     }
 
-    const whereQuery = query.where || query['where[]'];
-    const orderQuery = query.order || query['order[]'];
-    const includeQuery = query.include || query['include[]'];
-    const orQuery = this.isObject(query.where) ? query.where['$or'] || [] : query.or || query['or[]'];
+    const whereQuery = query.where || query['where[]'] || query.filter || query['filter[]'];
+    const orderQuery = query.order || query['order[]'] || query.sort || query['sort[]'];
+    const includeQuery = query.include || query['include[]'] || query.join || query['join[]'];
+    const orQuery = this.isObject(query.where) ? query.where['$or'] || [] : this.isObject(query.filter) ? query.filter['$or'] || [] : query.or || query['or[]'];
 
     if (this.isObject(whereQuery) && !!whereQuery['$or']) {
       delete whereQuery['$or'];
     }
-    
+
     const fields = this.splitString(query.fields);
     const where = this.isObject(whereQuery) ? this.parseObject(whereQuery, this.parseWhereObject, this.parseFilter) : this.parseArray(whereQuery, this.parseFilter);
     const or = this.parseArray(orQuery, this.parseOrFilter);
@@ -187,6 +193,7 @@ export class RestfulQueryInterceptor implements NestInterceptor {
       let subKeys = Object.keys(value);
       for (let k of subKeys) {
         let v = value[k];
+        k = k.charAt(0) === '$' ? k : `$${k}`;
         result.push(parser.call(this, `${key}||${k}||${v}`));
       }
     } else if (value === null) {

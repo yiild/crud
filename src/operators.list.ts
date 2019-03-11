@@ -1,5 +1,20 @@
 export const ORDER_BY = ['ASC', 'DESC'];
 export const COMPARISON_OPERATORS = [
+  'eq',
+  'ne',
+  'gt',
+  'lt',
+  'gte',
+  'lte',
+  'starts',
+  'ends',
+  'cont',
+  'excl',
+  'in',
+  'notin',
+  'isnull',
+  'notnull',
+  'between',
   '$eq',
   '$ne',
   '$gt',
@@ -36,4 +51,19 @@ export type ComparisonOperator =
   | '$notin'
   | '$isnull'
   | '$notnull'
-  | '$between';
+  | '$between'
+  | 'eq'
+  | 'ne'
+  | 'gt'
+  | 'lt'
+  | 'gte'
+  | 'lte'
+  | 'starts'
+  | 'ends'
+  | 'cont'
+  | 'excl'
+  | 'in'
+  | 'notin'
+  | 'isnull'
+  | 'notnull'
+  | 'between';
