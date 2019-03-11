@@ -3,10 +3,10 @@ import { SortParamDto } from './sort-param.dto';
 import { JoinParamDto } from './join-param.dto';
 export declare class RestfulParamsDto {
     fields?: string[];
-    filter?: FilterParamDto[];
+    where?: FilterParamDto[];
     or?: FilterParamDto[];
-    join?: JoinParamDto[];
-    sort?: SortParamDto[];
+    include?: JoinParamDto[];
+    order?: SortParamDto[];
     limit?: number;
     offset?: number;
     page?: number;

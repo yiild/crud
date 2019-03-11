@@ -14,12 +14,18 @@ let RestfulQueryInterceptor = class RestfulQueryInterceptor {
         this.delimStr = ',';
         this.reservedFields = [
             'fields',
+            'where',
+            'where[]',
             'filter',
             'filter[]',
             'or',
             'or[]',
+            'order',
+            'order[]',
             'sort',
             'sort[]',
+            'include',
+            'include[]',
             'join',
             'join[]',
             'per_page',
@@ -38,22 +44,29 @@ let RestfulQueryInterceptor = class RestfulQueryInterceptor {
         if (!shared_utils_1.isObject(query) || !Object.keys(query).length) {
             return {};
         }
+        const whereQuery = query.where || query['where[]'] || query.filter || query['filter[]'];
+        const orderQuery = query.order || query['order[]'] || query.sort || query['sort[]'];
+        const includeQuery = query.include || query['include[]'] || query.join || query['join[]'];
+        const orQuery = this.isObject(query.where) ? query.where['$or'] || [] : this.isObject(query.filter) ? query.filter['$or'] || [] : query.or || query['or[]'];
+        if (this.isObject(whereQuery) && !!whereQuery['$or']) {
+            delete whereQuery['$or'];
+        }
         const fields = this.splitString(query.fields);
-        const filter = this.parseArray(query.filter || query['filter[]'], this.parseFilter);
-        const or = this.parseArray(query.or || query['or[]'], this.parseFilter);
-        const sort = this.parseArray(query.sort || query['sort[]'], this.parseSort);
-        const join = this.parseArray(query.join || query['join[]'], this.parseJoin);
+        const where = this.isObject(whereQuery) ? this.parseObject(whereQuery, this.parseWhereObject, this.parseFilter) : this.parseArray(whereQuery, this.parseFilter);
+        const or = this.parseArray(orQuery, this.parseOrFilter);
+        const order = this.isObject(orderQuery) ? this.parseObject(orderQuery, this.parseOrderObject, this.parseSort) : this.parseArray(orderQuery, this.parseSort);
+        const include = this.isObject(includeQuery) ? this.parseObject(includeQuery, this.parseIncludeObject, this.parseJoin) : this.parseArray(includeQuery, this.parseJoin);
         const limit = this.parseInt(query.per_page || query.limit);
         const offset = this.parseInt(query.offset);
         const page = this.parseInt(query.page);
         const cache = this.parseInt(query.cache);
         const entityFields = this.parseEntityFields(query);
         const result = {
-            filter: [...filter, ...entityFields],
+            where: [...where, ...entityFields],
             or,
             fields,
-            sort,
-            join,
+            order,
+            include,
             limit,
             offset,
             page,
@@ -74,7 +87,7 @@ let RestfulQueryInterceptor = class RestfulQueryInterceptor {
     }
     parseFilter(str) {
         try {
-            const isArrayValue = ['in', 'notin', 'between'];
+            const isArrayValue = ['$in', '$notin', '$between'];
             const params = str.split(this.delim);
             const field = params[0];
             const operator = params[1];
@@ -91,6 +104,15 @@ let RestfulQueryInterceptor = class RestfulQueryInterceptor {
         catch (error) {
             return str;
         }
+    }
+    parseOrFilter(param) {
+        if (typeof param === 'string') {
+            return this.parseFilter(param);
+        }
+        else if (this.isObject(param)) {
+            return this.parseObject(param, this.parseWhereObject, this.parseFilter)[0];
+        }
+        return [];
     }
     parseSort(str) {
         try {
@@ -129,10 +151,57 @@ let RestfulQueryInterceptor = class RestfulQueryInterceptor {
         }
         return [];
     }
+    parseObject(param, iterator, parser) {
+        let keys = Object.keys(param);
+        if (Array.isArray(keys) && keys.length) {
+            const result = [];
+            for (let key of keys) {
+                let value = param[key];
+                iterator.call(this, result, key, value, parser);
+            }
+            return result;
+        }
+        return [];
+    }
+    parseWhereObject(result, key, value, parser) {
+        if (value.$or) {
+        }
+        else if (this.isObject(value)) {
+            let subKeys = Object.keys(value);
+            for (let k of subKeys) {
+                let v = value[k];
+                k = k.charAt(0) === '$' ? k : `$${k}`;
+                result.push(parser.call(this, `${key}||${k}||${v}`));
+            }
+        }
+        else if (value === null) {
+            result.push(parser.call(this, `${key}||$isnull`));
+        }
+        else {
+            result.push(parser.call(this, `${key}||$eq||${value}`));
+        }
+    }
+    parseOrderObject(result, key, value, parser) {
+        result.push(parser.call(this, `${key},${value}`));
+    }
+    parseIncludeObject(result, key, value, parser) {
+        if (value.fields) {
+            result.push(parser.call(this, `${key}||${value.fields.join(',')}`));
+        }
+        else if (Array.isArray(value)) {
+            result.push(parser.call(this, `${key}||${value.join(',')}`));
+        }
+        else if (typeof value === 'string') {
+            result.push(parser.call(this, `${key}||${value}`));
+        }
+    }
     parseEntityFields(query) {
         return Object.keys(query)
             .filter((key) => !this.reservedFields.some((reserved) => reserved === key))
-            .map((field) => ({ field, operator: 'eq', value: query[field] }));
+            .map((field) => ({ field, operator: '$eq', value: query[field] }));
+    }
+    isObject(v) {
+        return shared_utils_1.isObject(v) && !Array.isArray(v) && v !== null && v !== undefined;
     }
 };
 RestfulQueryInterceptor = __decorate([

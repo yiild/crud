@@ -30,7 +30,7 @@ __decorate([
     ValidateNested({ each: true }),
     Type((t) => filter_param_dto_1.FilterParamDto),
     __metadata("design:type", Array)
-], RestfulParamsDto.prototype, "filter", void 0);
+], RestfulParamsDto.prototype, "where", void 0);
 __decorate([
     IsOptional(),
     ValidateNested({ each: true }),
@@ -42,13 +42,13 @@ __decorate([
     ValidateNested({ each: true }),
     Type((t) => join_param_dto_1.JoinParamDto),
     __metadata("design:type", Array)
-], RestfulParamsDto.prototype, "join", void 0);
+], RestfulParamsDto.prototype, "include", void 0);
 __decorate([
     IsOptional(),
     ValidateNested({ each: true }),
     Type((t) => sort_param_dto_1.SortParamDto),
     __metadata("design:type", Array)
-], RestfulParamsDto.prototype, "sort", void 0);
+], RestfulParamsDto.prototype, "order", void 0);
 __decorate([
     IsOptional(),
     IsNumber(),

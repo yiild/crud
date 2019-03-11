@@ -53,7 +53,7 @@ function setSwaggerQueryGetOne(func, name) {
                 type: String,
             },
             {
-                name: 'join',
+                name: 'include',
                 description: `Join relational entity with ${name}`,
                 required: false,
                 in: 'query',
@@ -82,7 +82,7 @@ function setSwaggerQueryGetMany(func, name) {
                 type: String,
             },
             {
-                name: 'filter',
+                name: 'where',
                 description: `Filter ${name} collection with condition`,
                 required: false,
                 in: 'query',
@@ -96,14 +96,14 @@ function setSwaggerQueryGetMany(func, name) {
                 type: String,
             },
             {
-                name: 'sort',
+                name: 'order',
                 description: `Sort ${name} collection by field and order`,
                 required: false,
                 in: 'query',
                 type: String,
             },
             {
-                name: 'join',
+                name: 'include',
                 description: `Join relational entity with ${name}`,
                 required: false,
                 in: 'query',
