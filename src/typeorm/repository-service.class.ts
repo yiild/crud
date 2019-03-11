@@ -47,6 +47,20 @@ export class RepositoryService<T> extends RestfulService<T> {
   }
 
   /**
+   * Get many entities and count total
+   * @param query
+   * @param options
+   */
+  public async getManyAndCount(
+    // user: any,
+    query: RequestParamsParsed = {},
+    options: RestfulOptions = {},
+  ): Promise<[T[], number]> {
+    const builder = await this.buildQuery(query, options);
+    return builder.getManyAndCount();
+  }
+
+  /**
    * Get one entity by id
    * @param id
    * @param param1
@@ -192,9 +206,10 @@ export class RepositoryService<T> extends RestfulService<T> {
     builder.select(select);
 
     // set mandatory where condition
-    if (isArrayFull(mergedOptions.where)) {
-      for (let i = 0; i < mergedOptions.where.length; i++) {
-        this.setAndWhere(mergedOptions.where[i], `mergedOptions${i}`, builder);
+    let whereOptions = mergedOptions.where || mergedOptions.filter;
+    if (isArrayFull(whereOptions)) {
+      for (let i = 0; i < whereOptions.length; i++) {
+        this.setAndWhere(whereOptions[i], `mergedOptions${i}`, builder);
       }
     }
 
@@ -255,8 +270,8 @@ export class RepositoryService<T> extends RestfulService<T> {
     // set joins
     if (isArrayFull(query.include)) {
       const joinOptions = {
-        ...(this.options.include ? this.options.include : {}),
-        ...(options.include ? options.include : {}),
+        ...(this.options.include ? this.options.include || this.options.join : {}),
+        ...(options.include ? options.include || options.join : {}),
       };
 
       if (Object.keys(joinOptions).length) {
@@ -515,6 +530,8 @@ export class RepositoryService<T> extends RestfulService<T> {
       ? query.order
       : options.order && options.order.length
       ? options.order
+      : options.sort && options.sort.length
+      ? options.sort
       : []
       ;
 

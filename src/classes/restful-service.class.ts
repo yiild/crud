@@ -8,6 +8,7 @@ export abstract class RestfulService<T> {
   constructor() {}
 
   abstract getMany(...args: any[]): Promise<T[]>;
+  abstract getManyAndCount(...args: any[]): Promise<[T[], number]>;
   abstract getOne(...args: any[]): Promise<T>;
   abstract createOne(...args: any[]): Promise<T>;
   abstract createMany(...args: any[]): Promise<T[]>;
