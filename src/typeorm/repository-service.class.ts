@@ -2,6 +2,7 @@ import { Brackets, DeepPartial, Repository, SelectQueryBuilder } from 'typeorm';
 import { isObject } from '@nestjs/common/utils/shared.utils';
 import { plainToClass } from 'class-transformer';
 import { ClassType } from 'class-transformer/ClassTransformer';
+import { set } from 'dot-prop';
 
 import { RestfulService } from '../classes/restful-service.class';
 import { FilterParamParsed, JoinOptions, JoinParamParsed, RequestParamsParsed, RestfulOptions } from '../interfaces';
@@ -57,7 +58,6 @@ export class RepositoryService<T> extends RestfulService<T> {
     { where, fields, include, cache }: RequestParamsParsed = {},
     options: RestfulOptions = {},
   ): Promise<T> {
-    console.log(where);
     return this.getOneOrFail(
       {
         where: where ? [{ field: 'id', operator: '$eq', value: id }, ...where] : [{ field: 'id', operator: '$eq', value: id }],
@@ -254,7 +254,6 @@ export class RepositoryService<T> extends RestfulService<T> {
 
     // set joins
     if (isArrayFull(query.include)) {
-      console.log(query, this.options)
       const joinOptions = {
         ...(this.options.include ? this.options.include : {}),
         ...(options.include ? options.include : {}),
@@ -300,8 +299,6 @@ export class RepositoryService<T> extends RestfulService<T> {
       const cacheId = this.getCacheId(query, options);
       builder.cache(cacheId, mergedOptions.cache);
     }
-
-    console.log(builder.getQueryAndParameters());
 
     return builder;
   }
@@ -427,8 +424,6 @@ export class RepositoryService<T> extends RestfulService<T> {
       };
     }
 
-    console.log('COND:', cond, this.entityRelationsHash, joinOptions)
-
     if (cond.field && this.entityRelationsHash[cond.field] && joinOptions[cond.field]) {
       const relation = this.entityRelationsHash[cond.field];
       const options = joinOptions[cond.field];
@@ -450,8 +445,6 @@ export class RepositoryService<T> extends RestfulService<T> {
       ].map((col) => `${relation.name}.${col}`);
 
       const relationPath = relation.nestedRelation || `${this.alias}.${relation.name}`;
-
-      console.log(relation.type, relationPath, relation.name)
 
       builder[relation.type](relationPath, relation.name);
       builder.addSelect(select);
@@ -518,20 +511,40 @@ export class RepositoryService<T> extends RestfulService<T> {
   }
 
   private getSort(query: RequestParamsParsed, options: RestfulOptions) {
-    return query.order && query.order.length
-      ? this.mapSort(query.order)
+    let order = query.order && query.order.length
+      ? query.order
       : options.order && options.order.length
-      ? this.mapSort(options.order)
-      : {};
+      ? options.order
+      : []
+      ;
+
+    if (!order.length) {
+      return {};
+    }
+
+    if (typeof order === 'string') {
+      this.throwBadRequestException(`Invalid column name '${order}'`);
+    }
+
+    let orderMap = order.reduce((acc, o) => {
+      if (!o.order) {
+        this.throwBadRequestException(`Invalid column name '${o.order}'`);
+      }
+      set(acc, o.field, o.order);
+      return acc;
+    }, {});
+
+    return this.mapSort(orderMap, {});
   }
 
-  private mapSort(sort: ObjectLiteral[]) {
-    const params: ObjectLiteral = {};
-
-    for (let i = 0; i < sort.length; i++) {
-      this.validateHasColumn(sort[i].field);
-      params[`${this.alias}.${sort[i].field}`] = sort[i].order;
-    }
+  private mapSort(sort: ObjectLiteral, params: ObjectLiteral, parent=this.alias) {
+    Object.keys(sort).forEach(key => {
+      if (!!sort[key] && isObject(sort[key])) {
+        this.mapSort(sort[key], params, key);
+      } else {
+        params[`${parent}.${key}`] = sort[key];
+      }
+    });
 
     return params;
   }

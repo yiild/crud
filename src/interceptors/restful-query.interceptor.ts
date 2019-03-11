@@ -45,11 +45,20 @@ export class RestfulQueryInterceptor implements NestInterceptor {
       return {};
     }
 
+    const whereQuery = query.where || query['where[]'];
+    const orderQuery = query.order || query['order[]'];
+    const includeQuery = query.include || query['include[]'];
+    const orQuery = this.isObject(query.where) ? query.where['$or'] || [] : query.or || query['or[]'];
+
+    if (this.isObject(whereQuery) && !!whereQuery['$or']) {
+      delete whereQuery['$or'];
+    }
+    
     const fields = this.splitString(query.fields);
-    const where = this.parseArray(query.where || query['where[]'], this.parseFilter);
-    const or = this.parseArray(query.or || query['or[]'], this.parseFilter);
-    const order = this.parseArray(query.order || query['order[]'], this.parseSort);
-    const include = this.parseArray(query.include || query['include[]'], this.parseJoin);
+    const where = this.isObject(whereQuery) ? this.parseObject(whereQuery, this.parseWhereObject, this.parseFilter) : this.parseArray(whereQuery, this.parseFilter);
+    const or = this.parseArray(orQuery, this.parseOrFilter);
+    const order = this.isObject(orderQuery) ? this.parseObject(orderQuery, this.parseOrderObject, this.parseSort) : this.parseArray(orderQuery, this.parseSort);
+    const include = this.isObject(includeQuery) ? this.parseObject(includeQuery, this.parseIncludeObject, this.parseJoin) : this.parseArray(includeQuery, this.parseJoin);
     const limit = this.parseInt(query.per_page || query.limit);
     const offset = this.parseInt(query.offset);
     const page = this.parseInt(query.page);
@@ -105,6 +114,15 @@ export class RestfulQueryInterceptor implements NestInterceptor {
     }
   }
 
+  private parseOrFilter(param: any) {
+    if (typeof param === 'string') {
+      return this.parseFilter(param);
+    } else if (this.isObject(param)) {
+      return this.parseObject(param, this.parseWhereObject, this.parseFilter)[0];
+    }
+    return [];
+  }
+
   private parseSort(str: string): SortParamParsed {
     try {
       const params = str.split(this.delimStr);
@@ -147,9 +165,58 @@ export class RestfulQueryInterceptor implements NestInterceptor {
     return [];
   }
 
+  private parseObject(param: any, iterator: Function, parser: Function) {
+    let keys = Object.keys(param);
+
+    if (Array.isArray(keys) && keys.length) {
+      const result = [];
+      for (let key of keys) {
+        let value = param[key];
+        iterator.call(this, result, key, value, parser);
+      }
+      return result;
+    }
+
+    return [];
+  }
+
+  private parseWhereObject(result: any[], key: any, value: any, parser: Function) {
+    if (value.$or) {
+      // skip
+    } else if (this.isObject(value)) {
+      let subKeys = Object.keys(value);
+      for (let k of subKeys) {
+        let v = value[k];
+        result.push(parser.call(this, `${key}||${k}||${v}`));
+      }
+    } else if (value === null) {
+      result.push(parser.call(this, `${key}||$isnull`));
+    } else {
+      result.push(parser.call(this, `${key}||$eq||${value}`));
+    }
+  }
+
+  private parseOrderObject(result: any[], key: string, value: any, parser: Function) {
+    result.push(parser.call(this, `${key},${value}`));
+  }
+
+  private parseIncludeObject(result: any[], key: string, value: any, parser: Function) {
+    if (value.fields) {
+      result.push(parser.call(this, `${key}||${value.fields.join(',')}`));
+    } else if (Array.isArray(value)) {
+      result.push(parser.call(this, `${key}||${value.join(',')}`));
+    } else if (typeof value === 'string') {
+      result.push(parser.call(this, `${key}||${value}`));
+    }
+  }
+
   private parseEntityFields(query: RequestQueryParams): FilterParamParsed[] {
     return Object.keys(query)
       .filter((key) => !this.reservedFields.some((reserved) => reserved === key))
       .map((field) => ({ field, operator: '$eq', value: query[field] } as FilterParamParsed));
+  }
+
+  private isObject(v) {
+    return isObject(v) && !Array.isArray(v) && v !== null && v !== undefined;
   }
 }

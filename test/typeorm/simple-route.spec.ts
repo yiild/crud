@@ -57,6 +57,41 @@ class CompaniesController implements CrudController<CompaniesService, Company> {
   }
 }
 
+@Injectable()
+export class UsersService extends RepositoryService<User> {
+  protected options: RestfulOptions = {};
+
+  constructor(@InjectRepository(User) repo) {
+    super(repo);
+  }
+}
+
+
+@Feature('Users')
+@Crud(User, {
+  options: {
+    exclude: ['password'],
+    include: {
+      profile: {
+        allow: ['firstName', 'lastName'],
+      },
+    },
+    maxLimit: 10,
+    cache: 3000,
+  },
+  params: ['companyId'],
+  validation: {
+    validationError: {
+      target: false,
+      value: false,
+    },
+  },
+})
+@Controller('/companies/:companyId/users')
+export class UsersController implements CrudController<UsersService, User> {
+  constructor(public service: UsersService) {}
+}
+
 describe('Simple base routes', () => {
   let app: INestApplication;
   let server: any;
@@ -67,8 +102,8 @@ describe('Simple base routes', () => {
         TypeOrmModule.forRoot(ormConfig),
         TypeOrmModule.forFeature([UserProfile, User, Company]),
       ],
-      providers: [CompaniesService],
-      controllers: [CompaniesController],
+      providers: [CompaniesService, UsersService],
+      controllers: [CompaniesController, UsersController],
     }).compile();
 
     app = fixture.createNestApplication();
@@ -134,9 +169,21 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[domain][$ne]=test1 (200)', () => {
+    return request(server)
+      .get('/companies?where[domain][$ne]=test1')
+      .expect(200);
+  });
+
   it('/GET ?or=domain||$ne||test1 (200)', () => {
     return request(server)
       .get('/companies?or=domain||$ne||test1')
+      .expect(200);
+  });
+
+  it('/GET ?where[$or][0][domain][$ne]=test1 (200)', () => {
+    return request(server)
+      .get('/companies?where[$or][0][domain][$ne]=test1')
       .expect(200);
   });
 
@@ -146,15 +193,33 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[$or][0][domain][$eq]=test1&where[$or][1][domain][$eq]=test2 (200)', () => {
+    return request(server)
+      .get('/companies?where[$or][0][domain][$eq]=test1&where[$or][1][domain][$eq]=test2')
+      .expect(200);
+  });
+
   it('/GET ?or=domain||$eq||test1&where=domain||$eq||test2 (200)', () => {
     return request(server)
       .get('/companies?or=domain||$eq||test1&where=domain||$eq||test2')
       .expect(200);
   });
 
+  it('/GET ?where[$or][0][domain][$eq]=test1&where[domain][$eq]=test2 (200)', () => {
+    return request(server)
+      .get('/companies?where[$or][0][domain][$eq]=test1&where[domain][$eq]=test2')
+      .expect(200);
+  });
+
   it('/GET ?or=domain||$eq||test1&or=name||$notnull&where=domain||$eq||test2 (200)', () => {
     return request(server)
       .get('/companies?or=domain||$eq||test1&or=name||$notnull&where=domain||$eq||test2')
+      .expect(200);
+  });
+
+  it('/GET ?where[$or][0][domain][$eq]=test1&where[$or][1][name][$notnull]&where[domain][$eq]=test2 (200)', () => {
+    return request(server)
+      .get('/companies?where[$or][0][domain][$eq]=test1&where[$or][1][name][$notnull]&where[domain][$eq]=test2')
       .expect(200);
   });
 
@@ -166,9 +231,23 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[domain][$eq]=test1&where[name][$notnull]&where[$or][0][domain][$eq]=test2&where[$or][1][name][$cont]=Test2 (200)', () => {
+    return request(server)
+      .get(
+        '/companies?where[domain][$eq]=test1&where[name][$notnull]&where[$or][0][domain][$eq]=test2&where[$or][1][name][$cont]=Test2',
+      )
+      .expect(200);
+  });
+
   it('/GET ?or=domain||$eq||test1&where=name||$notnull&where=domain||$eq||test2 (200)', () => {
     return request(server)
       .get('/companies?or=domain||$eq||test1&where=name||$notnull&where=domain||$eq||test2')
+      .expect(200);
+  });
+
+  it('/GET ?where[$or][0][domain][$eq]=test1&where[name][$notnull]&where[domain][$eq]=test2 (200)', () => {
+    return request(server)
+      .get('/companies?where[$or][0][domain][$eq]=test1&where[name][$notnull]&where[domain][$eq]=test2')
       .expect(200);
   });
 
@@ -184,9 +263,21 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?include[users]=email (200)', () => {
+    return request(server)
+      .get('/companies?include[users]=email')
+      .expect(200);
+  });
+
   it('/GET ?order=name,DESC (200)', () => {
     return request(server)
       .get('/companies?order=name,DESC')
+      .expect(200);
+  });
+
+  it('/GET ?order[name]=DESC (200)', () => {
+    return request(server)
+      .get('/companies?order[name]=DESC')
       .expect(200);
   });
 
@@ -202,9 +293,21 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[domain]=test5 (200)', () => {
+    return request(server)
+      .get('/companies?where[domain]=test5')
+      .expect(200);
+  });
+
   it('/GET ?where=id||$in||1,2,3 (200)', () => {
     return request(server)
       .get('/companies?where=id||$in||1,2,3')
+      .expect(200);
+  });
+
+  it('/GET ?where[id][$in]=1,2,3 (200)', () => {
+    return request(server)
+      .get('/companies?where[id][$in]=1,2,3')
       .expect(200);
   });
 
@@ -214,9 +317,21 @@ describe('Simple base routes', () => {
       .expect(400);
   });
 
+  it('/GET ?where[foo][$in]=1,2,3 (400)', () => {
+    return request(server)
+      .get('/companies?where[foo][$in]=1,2,3')
+      .expect(400);
+  });
+
   it('/GET ?where=id||$gt||1 (200)', () => {
     return request(server)
       .get('/companies?where=id||$gt||1')
+      .expect(200);
+  });
+
+  it('/GET ?where[id][$gt]=1 (200)', () => {
+    return request(server)
+      .get('/companies?where[id][$gt]=1')
       .expect(200);
   });
 
@@ -226,9 +341,21 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[id][$lt]=5 (200)', () => {
+    return request(server)
+      .get('/companies?where[id][$lt]=5')
+      .expect(200);
+  });
+
   it('/GET ?where=id||$gte||1 (200)', () => {
     return request(server)
       .get('/companies?where=id||$gte||1')
+      .expect(200);
+  });
+
+  it('/GET ?where[id][$gte]=1 (200)', () => {
+    return request(server)
+      .get('/companies?where[id][$gte]=1')
       .expect(200);
   });
 
@@ -238,9 +365,21 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[id][$lte]=5 (200)', () => {
+    return request(server)
+      .get('/companies?where[id][$lte]=5')
+      .expect(200);
+  });
+
   it('/GET ?where=name||$starts||T (200)', () => {
     return request(server)
       .get('/companies?where=name||$starts||T')
+      .expect(200);
+  });
+
+  it('/GET ?where[name][$starts]=T (200)', () => {
+    return request(server)
+      .get('/companies?where[name][$starts]=T')
       .expect(200);
   });
 
@@ -250,9 +389,21 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[name][$ends]=4 (200)', () => {
+    return request(server)
+      .get('/companies?where[name][$ends]=4')
+      .expect(200);
+  });
+
   it('/GET ?where=name||$excl||5 (200)', () => {
     return request(server)
       .get('/companies?where=name||$excl||5')
+      .expect(200);
+  });
+
+  it('/GET ?where[name][$excl]=5 (200)', () => {
+    return request(server)
+      .get('/companies?where[name][$excl]=5')
       .expect(200);
   });
 
@@ -262,9 +413,21 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[description][$isnull] (200)', () => {
+    return request(server)
+      .get('/companies?where[description][$isnull]=true')
+      .expect(200);
+  });
+
   it('/GET ?where=id||$notin||500,501 (200)', () => {
     return request(server)
       .get('/companies?where=id||$notin||500,501')
+      .expect(200);
+  });
+
+  it('/GET ?where[id][$notin]=500,501 (200)', () => {
+    return request(server)
+      .get('/companies?where[id][$notin]=500,501')
       .expect(200);
   });
 
@@ -274,9 +437,21 @@ describe('Simple base routes', () => {
       .expect(200);
   });
 
+  it('/GET ?where[id][$between]=1,5 (200)', () => {
+    return request(server)
+      .get('/companies?where[id][$between]=1,5')
+      .expect(200);
+  });
+
   it('/GET ?where=id||$in|| (400)', () => {
     return request(server)
       .get('/companies?where=id||$in||')
+      .expect(400);
+  });
+
+  it('/GET ?where[id][$in] (400)', () => {
+    return request(server)
+      .get('/companies?where[id][$in]')
       .expect(400);
   });
 
@@ -286,15 +461,33 @@ describe('Simple base routes', () => {
       .expect(400);
   });
 
+  it('/GET ?where[id][$notin] (400)', () => {
+    return request(server)
+      .get('/companies?where[id][$notin]')
+      .expect(400);
+  });
+
   it('/GET ?where=id||$between|| (400)', () => {
     return request(server)
       .get('/companies?where=id||$between||')
       .expect(400);
   });
 
+  it('/GET ?where[id][$between] (400)', () => {
+    return request(server)
+      .get('/companies?where[id][$between]')
+      .expect(400);
+  });
+
   it('/GET ?where=id||$between||4 (400)', () => {
     return request(server)
       .get('/companies?where=id||$between||4')
+      .expect(400);
+  });
+
+  it('/GET ?where[id][$between]=4 (400)', () => {
+    return request(server)
+      .get('/companies?where[id][$between]=4')
       .expect(400);
   });
 
@@ -405,7 +598,15 @@ describe('Simple base routes', () => {
         .get('/companies/1?include=users||email&include=users.projects&include=users.projects.tasks')
         .expect(200)
         .expect(res => {
-          console.log(JSON.stringify(res.body, null, 2));
+          expect(res.body).to.have.nested.property('users[0].projects[0].tasks[0].name');
+        });
+    });
+
+    it('nested relations', () => {
+      return request(server)
+        .get('/companies/1?include[users]=email&include[users.projects]&include[users.projects.tasks]')
+        .expect(200)
+        .expect(res => {
           expect(res.body).to.have.nested.property('users[0].projects[0].tasks[0].name');
         });
     });
@@ -414,6 +615,24 @@ describe('Simple base routes', () => {
       return request(server)
         .get('/companies/1?include=users||email&include=users.projects1&include=users.projects1.tasks')
         .expect(200);
+    });
+
+    it('when missing fields', () => {
+      return request(server)
+        .get('/companies/1?include[users]=email&include[users.projects1]&include[users.projects1.tasks]')
+        .expect(200);
+    });
+  });
+
+  describe('sort by nested relations', () => {
+    it('sort by nested relation column', () => {
+      return request(server)
+        .get('/companies/1/users?include[profile]=lastName&order[profile.lastName]=DESC')
+        .expect(200)
+        .expect(res => {
+          let sortedNames = res.body.slice().sort((a, b) => a < b).map(u => u.profile.lastName);
+          expect(res.body.map(u => u.profile.lastName)).to.deep.equal(sortedNames);
+        });
     });
   });
 
